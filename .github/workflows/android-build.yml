@@ -12,7 +12,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Setup Python
+    - name: Setup Python 3.8
       uses: actions/setup-python@v4
       with:
         python-version: '3.8'
@@ -25,7 +25,7 @@ jobs:
         pip3 install cython Cython
         pip3 install --no-cache-dir buildozer
 
-    - name: Install Android SDK
+    - name: Install Android SDK commandline tools
       run: |
         mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
         cd $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
@@ -39,13 +39,14 @@ jobs:
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME --licenses
         $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "build-tools;34.0.0" "platforms;android-34"
 
-    - name: Build APK
+    - name: Build APK with Buildozer
       run: |
-        export ANDROID_HOME=$HOME/.buildozer/android/platform/android-sdk
-        export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/34.0.0:$PATH
+        export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
+        export ANDROID_HOME=$ANDROID_SDK_ROOT
+        export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/build-tools/34.0.0:$PATH
         buildozer -v android debug
 
-    - name: Upload APK
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: MyAssistant-apk
