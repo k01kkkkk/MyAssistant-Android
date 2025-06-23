@@ -8,77 +8,45 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
 
     steps:
     - uses: actions/checkout@v3
-
-    - name: Clean workspace
-      run: |
-        rm -rf .buildozer
-        rm -rf bin
 
     - name: Setup Python 3.8
       uses: actions/setup-python@v4
       with:
         python-version: '3.8'
 
-    - name: Install system dependencies
+    - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential git python3-pip openjdk-11-jdk unzip zip wget ant
         pip3 install --upgrade pip
-        pip3 install cython==0.29.36
+        pip3 install cython Cython
         pip3 install --no-cache-dir buildozer
 
-    - name: Setup Android SDK and NDK
+    - name: Install Android SDK commandline tools
       run: |
-        mkdir -p $HOME/android-sdk/cmdline-tools/latest
-        cd $HOME/android-sdk/cmdline-tools/latest
-        
-        wget --tries=3 --retry-connrefused https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip -O cmdline-tools.zip
+        mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
+        cd $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
+        wget https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip -O cmdline-tools.zip
         unzip cmdline-tools.zip
-        rm cmdline-tools.zip
-        mv cmdline-tools/* .
-        rm -rf cmdline-tools
-        
-        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
+        mv cmdline-tools latest
 
-        yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses
-        sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "build-tools;34.0.0" "platforms;android-34" "ndk;23.1.7779620"
+        export ANDROID_HOME=$HOME/.buildozer/android/platform/android-sdk
 
-    - name: Prepare build environment
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME --licenses
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "build-tools;34.0.0" "platforms;android-34"
+
+    - name: Build APK with Buildozer
       run: |
-        # Установка переменных окружения
-        echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/23.1.7779620" >> $GITHUB_ENV
-        echo "PATH=$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/34.0.0:$PATH" >> $GITHUB_ENV
-        
-        # Обновление buildozer.spec
-        sed -i '/android.ndk_path/d' buildozer.spec
-        sed -i '/android.sdk_path/d' buildozer.spec
-        sed -i 's/android.arch = /android.archs = /' buildozer.spec
-        echo "android.ndk_path = $ANDROID_NDK_HOME" >> buildozer.spec
-
-    - name: Initialize Buildozer
-      run: |
-        buildozer -v android update
-        buildozer -v android clean
-
-    - name: Build APK
-      run: |
+        export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
+        export ANDROID_HOME=$ANDROID_SDK_ROOT
+        export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/34.0.0:$PATH
         buildozer -v android debug
 
     - name: Upload APK artifact
-      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: MyAssistant-apk
         path: bin/*.apk
-
-    - name: Show build logs
-      if: failure()
-      run: |
-        find . -name "build.out" -exec cat {} \;
-        find . -name "build.err" -exec cat {} \;
