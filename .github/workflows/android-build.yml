@@ -10,22 +10,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-    - name: Setup Python 3.8
+    - name: Setup Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.8'
 
-    - name: Install dependencies
+    - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential git python3-pip openjdk-11-jdk unzip zip wget ant
+        sudo apt-get install -y \
+          build-essential git python3-pip openjdk-11-jdk unzip zip wget ant
+
+    - name: Install Python dependencies
+      run: |
         pip3 install --upgrade pip
         pip3 install cython Cython
         pip3 install --no-cache-dir buildozer
 
-    - name: Install Android SDK commandline tools
+    - name: Download and setup Android SDK commandline tools
       run: |
         mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
         cd $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
@@ -33,12 +38,15 @@ jobs:
         unzip cmdline-tools.zip
         mv cmdline-tools latest
 
+        # Создаём symlink для совместимости с Buildozer (ожидает sdkmanager в tools/)
+        ln -s $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest $HOME/.buildozer/android/platform/android-sdk/tools
+
         export ANDROID_HOME=$HOME/.buildozer/android/platform/android-sdk
 
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME --licenses
         $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "build-tools;34.0.0" "platforms;android-34"
 
-    - name: Build APK with Buildozer
+    - name: Build APK
       run: |
         export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
         export ANDROID_HOME=$ANDROID_SDK_ROOT
